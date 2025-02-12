@@ -65,7 +65,7 @@ MAIN:							; The Main program
 		nop ; Check ADD16 result (Set Break point here #2)
 
 
-		; Call function to load SUB16 operands
+		; Call function to load SUB16 o	perands
 		rcall SUB16 ; Check load SUB16 operands (Set Break point here #3)
 
 		; Call SUB16 function to display its results (calculate FCB9 - E420)
@@ -98,6 +98,11 @@ DONE:	rjmp	DONE			; Create an infinite while loop to signify the
 ;       out bit.
 ;-----------------------------------------------------------
 ADD16:
+		push mpr
+		push A
+		push B
+
+
 		; Load beginning address of first operand into X
 		ldi		XL, low(ADD16_OP1)	; Load low byte of address
 		ldi		XH, high(ADD16_OP1)	; Load high byte of address
@@ -108,26 +113,48 @@ ADD16:
 		lpm		mpr, Z+
 		st		X+,	mpr
 		lpm		mpr, Z
-		st		X+,	mpr
+		st		X,	mpr
+		SBIW	X,	1
 
-		ldi		XL, low(ADD16_OP2)	; Load low byte of address
-		ldi		XH, high(ADD16_OP2)	; Load high byte of address
+
+		ldi		YL, low(ADD16_OP2)	; Load low byte of address
+		ldi		YH, high(ADD16_OP2)	; Load high byte of address
 
 		ldi     ZL, low(OperandB << 1)      ; Load low byte of address into ZL
 		ldi     ZH, high(OperandB << 1)     ; Load high byte of address into ZH
 
 		lpm		mpr, Z+
-		st		X+,	mpr
+		st		Y+,	mpr
 		lpm		mpr, Z
-		st		X+,	mpr
+		st		Y,	mpr
+		SBIW	Y, 1
 
 
+		ldi     ZL, low(ADD16_Result)      ; Load low byte of address into ZL
+		ldi     ZH, high(ADD16_Result)     ; Load high byte of address into ZH	
+		ld		A, X+;
+		ld		B, Y+;
+		add		A,B;
+		st		Z+, A
+		ld		A, X;
+		ld		B, Y;
+		adc		A,B;
+		st		Z+, A
+		BRCC	CarrySkip;
+		ldi		mpr, $01;
+		st		Z, mpr;
+CarrySkip:
+
+
+		
 		; Load beginning address of second operand into Y
 		
 		; Load beginning address of result into Z
 
 		; Execute the function
-
+		pop B
+		pop A
+		pop mpr		
 		ret						; End a function with RET
 
 ;-----------------------------------------------------------
@@ -147,19 +174,32 @@ SUB16:
 		lpm		mpr, Z+
 		st		X+,	mpr
 		lpm		mpr, Z
-		st		X+,	mpr
+		st		X,	mpr
+		SBIW	X, 1
 
-		ldi		XL, low(SUB16_OP2)	; Load low byte of address
-		ldi		XH, high(SUB16_OP2)	; Load high byte of address
+		ldi		YL, low(SUB16_OP2)	; Load low byte of address
+		ldi		YH, high(SUB16_OP2)	; Load high byte of address
 
 		ldi     ZL, low(OperandD << 1)      ; Load low byte of address into ZL
 		ldi     ZH, high(OperandD << 1)     ; Load high byte of address into ZH
 
 		lpm		mpr, Z+
-		st		X+,	mpr
+		st		Y+,	mpr
 		lpm		mpr, Z
-		st		X+,	mpr
+		st		Y,	mpr
+		SBIW	Y, 1
 
+
+		ldi     ZL, low(SUB16_Result)      ; Load low byte of address into ZL
+		ldi     ZH, high(SUB16_Result)     ; Load high byte of address into ZH	
+		ld		A, X+;
+		ld		B, Y+;
+		sub		A,B;
+		st		Z+, A
+		ld		A, X;
+		ld		B, Y;
+		sbc		A,B;
+		st		Z+, A
 
 		ret						; End a function with RET
 
