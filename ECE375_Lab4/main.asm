@@ -5,6 +5,17 @@
 ;*			Harrison Gregory
 ;*	   Date: 2-06-2025
 ;*
+;*
+;*
+;*	Descr: This program contains 4 functions for:
+;*			- ADD16 - 
+;*			- SUB16 - 
+;*			- MUL16 - 
+;*			- MUL24 - 
+;*			- COMPOUND - 
+;*				
+;*				T
+;*
 ;***********************************************************
 
 .include "m128def.inc"			; Include definition file
@@ -60,31 +71,28 @@ INIT:							; The initialization routine
 MAIN:							; The Main program
 
 		; Call function to load ADD16 operands
-		rcall load_add16 ;
-		rcall add16 ; Check load ADD16 operands (Set Break point here #1)
-
-		; Call ADD16 function to display its results (calculate FCBA + FFFF)
+		rcall load_add16	; Check load ADD16 operands (Set Break point here #1)
+		rcall add16			; Call ADD16 function to display its results (calculate FCBA + FFFF)
 		nop ; Check ADD16 result (Set Break point here #2)
 
 
 		; Call function to load SUB16 o	perands
-		rcall load_sub16;
-		rcall SUB16 ; Check load SUB16 operands (Set Break point here #3)
-
-		; Call SUB16 function to display its results (calculate FCB9 - E420)
+		rcall load_sub16	; Check load SUB16 operands (Set Break point here #3)
+		rcall SUB16			; Call SUB16 function to display its results (calculate FCB9 - E420)
 		nop ; Check SUB16 result (Set Break point here #4)
 
 
 		; Call function to load MUL24 operands
 		rcall load_mul24	; Check load MUL24 operands (Set Break point here #5)
-
-		; Call MUL24 function to display its results (calculate FFFFFF * FFFFFF)
-		rcall mul24	;
+		rcall mul24			; Call MUL24 function to display its results (calculate FFFFFF * FFFFFF)
 
 		nop ; Check MUL24 result (Set Break point here #6)
 
 		; Setup the COMPOUND function direct test
 		rcall COMPOUND ; Check load COMPOUND operands (Set Break point here #7)
+		; README: We set up COMPOUND so it loads itself within the function since pointers 
+		; are used for multiple different places unlike the other functions. May be best to
+		; See set breakpoints within COMPOUND to see if values are loaded correctly
 
 		; Call the COMPOUND function
 		nop ; Check COMPOUND result (Set Break point here #8)
@@ -106,10 +114,11 @@ DONE:	rjmp	DONE			; Create an infinite while loop to signify the
 ;       out bit.
 ;-----------------------------------------------------------
 Load_ADD16:
+		
+		; Save register information (X,Y,Z not saved)
 		push mpr
 		push A
 		push B
-
 
 		; Load beginning address of first operand into X
 		ldi		XL, low(ADD16_OP1)	; Load low byte of address
@@ -118,40 +127,48 @@ Load_ADD16:
 		ldi     ZL, low(OperandA << 1)      ; Load low byte of address into ZL
 		ldi     ZH, high(OperandA << 1)     ; Load high byte of address into ZH
 
-		lpm		mpr, Z+			;Move data from operand into data memory
-		st		X+,	mpr
+		;Move data from operand1 into data memory
+		lpm		mpr, Z+			
+		st		X+,	mpr			; Load 1st byte of operand1 into SRAM
 		lpm		mpr, Z			
-		st		X,	mpr			; Load data at address X with mpr
-		SBIW	X,	1			; Go to previous address of X
+		st		X,	mpr			; Load 2nd byte of operand 1 into SRAM
+		SBIW	X,	1			; Go to previous address of X (byte 1 of operand1 in SRAM)
+
+		; Load beginning address of second operand into Y
 		ldi		YL, low(ADD16_OP2)	; Load low byte of address
 		ldi		YH, high(ADD16_OP2)	; Load high byte of address
 
 		ldi     ZL, low(OperandB << 1)      ; Load low byte of address into ZL
 		ldi     ZH, high(OperandB << 1)     ; Load high byte of address into ZH
 
-		lpm		mpr, Z+				;Move data from operand into data memory
-		st		Y+,	mpr
+		;Move data from operand2 into data memory
+		lpm		mpr, Z+				
+		st		Y+,	mpr		; Load first byte of SRAM with 2nd operand's 1st byte
 		lpm		mpr, Z
-		st		Y,	mpr
-		SBIW	Y, 1
+		st		Y,	mpr		; Load 2nd byte of SRAM with 2nd operand's 2nd byte
+		SBIW	Y, 1		; Make Y point to first byte of SRAM (2nd operand's 1st byte)
 
 
 		ldi     ZL, low(ADD16_Result)      ; Load low byte of address into ZL
 		ldi     ZH, high(ADD16_Result)     ; Load high byte of address into ZH	
 
+		; Restore register information
 		pop	B
 		pop A
 		pop mpr
-		ret
+
+		ret	; End of LOAD_ADD16
 
 ;-----------------------------------------------------------
 ; Func: ADD16
 ; Desc: Adds two 16-bit numbers and generates a 24-bit number
 ;       where the high byte of the result contains the carry
 ;       out bit.
-;		Assumptions: Already set X and Y as Operands and Z and destinations
+; Req:	Already set X and Y as Operands and Z and destinations
 ;-----------------------------------------------------------
 ADD16:
+		
+		; Save registers information
 		push A
 		push B
 		push XL
@@ -162,7 +179,7 @@ ADD16:
 		push ZH
 		push mpr
 
-
+		; Load A, B with 
 		ld		A, X+			; Get data memory from A
 		ld		B, Y+			; Get Data memory from B
 		add		A,B				; ADD them to each other
@@ -176,6 +193,8 @@ ADD16:
 		st		Z, mpr;
 
 AddCarrySkip:		
+		
+		; Restore register information
 		pop mpr
 		pop ZH
 		pop ZL
@@ -189,11 +208,11 @@ AddCarrySkip:
 		ret						; End a function with RET
 
 ;-----------------------------------------------------------
-; Func: SUB16
-; Desc: Subtracts two 16-bit numbers and generates a 16-bit
-;       result. Always subtracts from the bigger values.
+; Func: LOAD_SUB16
+; Desc: Loads two 16-bit numbers into X and Y and aims Z at 
+;		Location for result.
 ;-----------------------------------------------------------
-Load_SUB16:
+LOAD_SUB16:
 		; Execute the function here
 		; Load beginning address of first operand into X
 		ldi		XL, low(SUB16_OP1)	; Load low byte of address
@@ -203,9 +222,9 @@ Load_SUB16:
 		ldi     ZH, high(OperandC << 1)     ; Load high byte of address into ZH
 
 		lpm		mpr, Z+						;Move data from operand into data memory
-		st		X+,	mpr
+		st		X+,	mpr	; first byte loaded
 		lpm		mpr, Z
-		st		X,	mpr
+		st		X,	mpr	; second byte loaded
 		SBIW	X, 1
 
 		ldi		YL, low(SUB16_OP2)	; Load low byte of address
@@ -215,15 +234,23 @@ Load_SUB16:
 		ldi     ZH, high(OperandD << 1)     ; Load high byte of address into ZH
 
 		lpm		mpr, Z+				;Move data from operand into data memory
-		st		Y+,	mpr
+		st		Y+,	mpr	; first byte loaded
 		lpm		mpr, Z
-		st		Y,	mpr
+		st		Y,	mpr	; second byte loaded
 		SBIW	Y, 1
 
 		ldi     ZL, low(SUB16_Result)      ; Load low byte of address into ZL
 		ldi     ZH, high(SUB16_Result)     ; Load high byte of address into ZH	
-		ret
+		ret	; End LOAD_SUB16
 
+;-----------------------------------------------------------
+; Func: LOAD_SUB16
+; Desc: Subtracts a smaller number B from a larger number A
+;		stores 16 bit result to location Z points to.
+; Req:	X must point to first byte of large 16 bit number
+;		Y must point to first byte of smaller 16 bit number
+;		Z must point to first byte of the 16 bit result destination
+;-----------------------------------------------------------
 SUB16:
 		; Store current register values to the stack for later
 		push A
@@ -261,46 +288,15 @@ SUB16:
 ;-----------------------------------------------------------
 ; Func: MUL24
 ; Desc: Multiplies two 24-bit numbers and generates a 48-bit
-;       result. Performs factorE * factorF = result by storing
-;		factorE and factorF into 
-;
-;
-; Below are the program_memory addresses of factors E and F
-/**
-; MUL24 operands
-OperandE1:
-	.DW	0XFFFF				; lower 16 bits (factorE)
-OperandE2:
-	.DW	0X00FF				; upper 8 bits (factorE)
-OperandF1:
-	.DW	0XFFFF				; lower 16 bits (factorF)
-OperandF2:
-	.DW	0X00FF				; upper 8 bits (factorF)
-**/
-;
-;
-; Below are the future SRAM addresses of factors E, F, and 
-;	result:
-/**
-.org	$0160				; data memory allocation for operands
-MUL24_OP1:					; factorE
-		.byte 3				; allocate three bytes for first operand of MUL24
-MUL24_OP2:					; factorF
-		.byte 3				; allocate three bytes for second operand of MUL24
-
-.org	$0170				; data memory allocation for results of MUL24
-MUL24_Result:
-		.byte 6				; allocate 7 bytes for MUL24 result: 
-							;        Reason below:
-							;     MUL24 multiplies two 24 bit numbers:
-							;     24 bits = 3 bytes
-							;	  two numbers * 3 bytes = 6 bytes
-**/
+;       result. 
+; Req:	X, Y must each point to first byte of 24 bit factors.
+;		Z must point to first byte of desired storage location
+;		of 48 bit product.
 ;-----------------------------------------------------------
 MUL24:
 ;* - Simply adopting MUL16 ideas to MUL24 will not give you steady results. You should come up with different ideas.
 	
-	;Save all register previous values to Stack:
+	;Save all register information:
 	push 	A				; Save A register
 	push	B				; Save B register
 	push	rhi				; Save rhi register
@@ -367,7 +363,7 @@ MUL24x8:
 
 
 ;First 8 bits of X multiplied by the first 8 bits of Y
-	rcall MULPLace		;
+	rcall MULPLace		;call MULPlace
 
 	adiw Z, 1			; shift the next line to the next 0's for adding
 	adiw Y, 1			; Start multiplying with the second 8 bits
@@ -383,7 +379,7 @@ MUL24x8:
 	adiw Z, 1			; shift the next line to the next 0's for adding
 	adiw Y, 1			; Start multiplying with the second 8 bits
 
-
+	; Restore register information
 	pop		ZL			; Pop everything off the stack
 	pop		ZH
 	pop		YL
@@ -418,23 +414,23 @@ MULPlace:
 	MUL A, B;
 
 ; ADD Lowest Digit to memory
-	ld A, Z
-	ADD A, rlo
-	st Z+, A 
+	ld A, Z		; load Z into A
+	ADD A, rlo	; Add low byte of prev MUL product to A
+	st Z+, A	; Store A at current location of result pointer
 
 ;ADD second digit of the MUL to current stuff
-	ld B, Z
-	ADC B,rhi
-	st Z+, B
+	ld B, Z		; load Z into B
+	ADC B,rhi	; add high byte of prev MUL product to B with carry
+	st Z+, B	; Store B at current location of result pointer
 
-	ldi i, 6;
-	ldi	mpr, 0;
+	ldi i, 6;	; load register i with 6 for 6 bytes of result
+	ldi	mpr, 0;	; Empty mpr
 
-PropagateCarry:
-	ld A, Z
-	adc A, mpr
-	st Z+, A
-	dec i				;
+PropagateCarry: ; Move the carries through in this section
+	ld A, Z		; load A with current result byte
+	adc A, mpr  ; Add the carry to A
+	st Z+, A	; Store A back into Z, move Z to next byte of result
+	dec i				; Decrement to next byte address of result
 	brne PropagateCarry	; Loop back if carry is still set
 
 ;Pop to restore things
@@ -456,10 +452,11 @@ PropagateCarry:
 
 ;-----------------------------------------------------------
 ; Func: Load_MUL24
-; Desc: Helper Function of MUL24: loads factor1 and factor2
-;		into X and Z respec
+; Desc: loads factor1 and factor2 into X and Y respectively. 
+;		Loads Z with the first byte of the product's final
+;		storage site.
 ;-----------------------------------------------------------
-Load_MUL24:
+LOAD_MUL24:
 		//Get factor1's SRAM storage address as X:
 		ldi		XL, low(MUL24_OP1)	; Load low byte of address  (factor1)
 		ldi		XH, high(MUL24_OP1)	; Load high byte of address (factor1)
@@ -470,11 +467,11 @@ Load_MUL24:
 
 		// Move things from the operand into the DATA memory
 		lpm		mpr, Z+
-		st		X+,	mpr
+		st		X+,	mpr		; load 1st byte of factor1 into SRAM
 		lpm		mpr, Z
-		st		X+,	mpr
+		st		X+,	mpr		; load 2nd byte of factor1 into SRAM
 		lpm		mpr, Z
-		st		X+,	mpr
+		st		X+,	mpr		; load 3rd byte of factor1 into SRAM
 		
 
 		ldi		YL, low(MUL24_OP2)	; Load low byte of address
@@ -483,12 +480,12 @@ Load_MUL24:
 		ldi     ZL, low(OperandF1 << 1)      ; Load low byte of address into ZL
 		ldi     ZH, high(OperandF1 << 1)     ; Load high byte of address into ZH
 
+		lpm		mpr, Z+		
+		st		Y+,	mpr		; load 1st byte of factor2 into SRAM
 		lpm		mpr, Z+
-		st		Y+,	mpr
+		st		Y+,	mpr		; load 2nd byte of factor2 into SRAM
 		lpm		mpr, Z+
-		st		Y+,	mpr
-		lpm		mpr, Z+
-		st		Y+,	mpr
+		st		Y+,	mpr		; load 3rd byte of factor2 into SRAM
 
 
 		ldi		XL, low(MUL24_OP1)	; Load low byte of address
@@ -499,7 +496,7 @@ Load_MUL24:
 
 		ldi     ZL, low(MUL24_RESULT)      ; Load low byte of address into ZL
 		ldi     ZH, high(MUL24_RESULT)     ; Load high byte of address into ZH	
-		ret
+		ret	; end LOAD_MUL24
 
 ;-----------------------------------------------------------
 ; Func: COMPOUND
@@ -513,29 +510,35 @@ Load_MUL24:
 ;-----------------------------------------------------------
 COMPOUND:
 ;LOAD OPERANDS
+		; Point X to COMP_OP1
 		ldi		XL, low(COMP_OP1)	; Load low byte of address
 		ldi		XH, high(COMP_OP1)	; Load high byte of address
 
+		; Point Z to OperandG in prgm memory
 		ldi     ZL, low(OperandG << 1)      ; Load low byte of address into ZL
 		ldi     ZH, high(OperandG << 1)     ; Load high byte of address into ZH
 
+		; Load OperandG into SRAM (pointed to by X)
 		lpm		mpr, Z+					; load in data from operand G
-		st		X+,	mpr
-		lpm		mpr, Z
-		st		X,	mpr
-		SBIW	X, 1
+		st		X+,	mpr			; Store 1st byte of OperandG
+		lpm		mpr, Z	
+		st		X,	mpr			; Store 2nd byte of OperandG
+		SBIW	X, 1			; Point X back to low byte of OperandG
 
+		; Point Y to COMP_OP2
 		ldi		YL, low(COMP_OP2)	; Load low byte of address
 		ldi		YH, high(COMP_OP2)	; Load high byte of address
 
+		;Point Z to first byte of OperandH
 		ldi     ZL, low(OperandH << 1)      ; Load low byte of address into ZL
 		ldi     ZH, high(OperandH << 1)     ; Load high byte of address into ZH
 
-		lpm		mpr, Z+					;Load in operandH
-		st		Y+,	mpr
+		;Load in operandH to SRAM (pointed to by Y)
+		lpm		mpr, Z+					
+		st		Y+,	mpr			; Store 1st byte of OperandH
 		lpm		mpr, Z
-		st		Y,	mpr
-		SBIW	Y, 1
+		st		Y,	mpr			; Store 2nd byte of OperandH
+		SBIW	Y, 1			; Point Y back to low byte of OperandH
 
 		ldi     ZL, low(Result1)      ; Load low byte of address into ZL
 		ldi     ZH, high(Result1)     ; Load high byte of address into ZH	
@@ -555,11 +558,12 @@ COMPOUND:
 		ldi     ZL, low(OperandI << 1)      ; Load low byte of address into ZL
 		ldi     ZH, high(OperandI << 1)     ; Load high byte of address into ZH
 
-		lpm		mpr, Z+					;Put data from operand I into Y's memory
-		st		Y+,	mpr
+		;Put data from COMP_OP1 into Y's SRAM memory
+		lpm		mpr, Z+					
+		st		Y+,	mpr		; COMP_OP1 1st byte
 		lpm		mpr, Z
-		st		Y,	mpr
-		SBIW	Y, 1
+		st		Y,	mpr		; COMP_OP1 2nd byte
+		SBIW	Y, 1		; Y points to COMP_OP1 1st byte in SRAM
 		
 		ldi     ZL, low(Result2)      ; Load low byte of address into ZL
 		ldi     ZH, high(Result2)     ; Load high byte of address into ZH	
@@ -568,12 +572,14 @@ COMPOUND:
 		; Perform addition next to calculate (G - H) + I
 		rcall ADD16
 		; Setup the MUL24 function with ADD16 result as both operands
-		ldi     XL, low(Result2)      ; Load low byte of address into ZL
-		ldi     XH, high(Result2)     ; Load high byte of address into ZH
-		ldi     YL, low(Result2)      ; Load low byte of address into ZL
-		ldi     YH, high(Result2)     ; Load high byte of address into ZH
-		ldi		ZL, low(Result3)
-		ldi		ZH, high(result3)
+		ldi     XL, low(Result2)      ; Load low byte of address into XL
+		ldi     XH, high(Result2)     ; Load high byte of address into XH
+		ldi     YL, low(Result2)      ; Load low byte of address into YL
+		ldi     YH, high(Result2)     ; Load high byte of address into YH
+		ldi		ZL, low(Result3)      ; Load low byte of address into ZL
+		ldi		ZH, high(result3)	  ; Load high byte of address into ZH
+
+
 		; Perform multiplication to calculate ((G - H) + I)^2
 		rcall MUL24						;
 
