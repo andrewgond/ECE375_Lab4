@@ -21,6 +21,7 @@
 
 .def	oloop = r17				; Outer Loop Counter
 .def	iloop = r18				; Inner Loop Counter
+.def	i = r20					; Loop ctr
 
 
 ;***********************************************************
@@ -79,10 +80,11 @@ MAIN:							; The Main program
 
 		; Call MUL24 function to display its results (calculate FFFFFF * FFFFFF)
 		rcall mul24	;
+
 		nop ; Check MUL24 result (Set Break point here #6)
 
 		; Setup the COMPOUND function direct test
-		nop ; Check load COMPOUND operands (Set Break point here #7)
+		rcall COMPOUND ; Check load COMPOUND operands (Set Break point here #7)
 
 		; Call the COMPOUND function
 		nop ; Check COMPOUND result (Set Break point here #8)
@@ -310,19 +312,30 @@ MUL24:
 	push	YL
 	push	ZH				; Save Z-ptr
 	push	ZL
-	push	oloop			; Save counters
-	push	iloop
+
 
 	clr		zero			; Maintain zero semantics
 
 
-
+;First 8 bits of X multiplied by the first 8 bits of Y
 	rcall MUL24x8		;
+
+	adiw Z, 1;
+	adiw X, 1;
+;First 8 bits of X multiplied by the second 8 bits of Y
+	rcall MUL24x8		;
+
+	adiw Z, 1;
+	adiw X, 1;
+
+;First 8 bits of X multiplied by the Third 8 bits of Y
+	rcall MUL24x8		;
+
+	adiw Z, 1;
+	adiw X, 1;
 
 
 	//Restore all Register's previous values from Stack
-	pop		iloop			
-	pop		oloop
 	pop		ZL
 	pop		ZH
 	pop		YL
@@ -340,10 +353,103 @@ MUL24:
 
 
 MUL24x8:
+	push 	A				; Save A register
+	push	B				; Save B register
+	push	rhi				; Save rhi register
+	push	rlo				; Save rlo register
+	push	zero			; Save zero register
+	push	XH				; Save X-ptr
+	push	XL
+	push	YH				; Save Y-ptr
+	push	YL
+	push	ZH				; Save Z-ptr
+	push	ZL
 
+
+;First 8 bits of X multiplied by the first 8 bits of Y
+	rcall MULPLace		;
+
+	adiw Z, 1;
+	adiw Y, 1;
+;First 8 bits of X multiplied by the second 8 bits of Y
+	rcall MULPLace		;
+
+	adiw Z, 1;
+	adiw Y, 1;
+
+;First 8 bits of X multiplied by the Third 8 bits of Y
+	rcall MULPLace		;
+
+	adiw Z, 1;
+	adiw Y, 1;
+
+
+	pop		ZL
+	pop		ZH
+	pop		YL
+	pop		YH
+	pop		XL
+	pop		XH
+	pop		zero
+	pop		rlo
+	pop		rhi
+	pop		B
+	pop		A
+	ret						;
 
 MULPlace:
+;Push things on the stack
+	push 	A				; Save A register
+	push	B				; Save B register
+	push	rhi				; Save rhi register
+	push	rlo				; Save rlo register
+	push	zero			; Save zero register
+	push	XH				; Save X-ptr
+	push	XL
+	push	YH				; Save Y-ptr
+	push	YL
+	push	ZH				; Save Z-ptr
+	push	ZL
 
+; DO 8x8 Mul
+	ld A, X;
+	ld B, Y;
+	
+	MUL A, B;
+
+; ADD Lowest Digit to memory
+	ld A, Z
+	ADD A, rlo
+	st Z+, A 
+
+;ADD second digit of the MUL to current stuff
+	ld B, Z
+	ADC B,rhi
+	st Z+, B
+
+	ldi i, 6;
+	ldi	mpr, 0;
+
+PropagateCarry:
+	ld A, Z
+	adc A, mpr
+	st Z+, A
+	dec i				;
+	brne PropagateCarry	; Loop back if carry is still set
+
+;Pop to restore things
+
+	pop		ZL
+	pop		ZH
+	pop		YL
+	pop		YH
+	pop		XL
+	pop		XH
+	pop		zero
+	pop		rlo
+	pop		rhi
+	pop		B
+	pop		A
 	ret
 
 
@@ -406,15 +512,70 @@ Load_MUL24:
 ;       All result bytes should be cleared before beginning.
 ;-----------------------------------------------------------
 COMPOUND:
+;LOAD OPERANDS
+		ldi		XL, low(COMP_OP1)	; Load low byte of address
+		ldi		XH, high(COMP_OP1)	; Load high byte of address
+
+		ldi     ZL, low(OperandG << 1)      ; Load low byte of address into ZL
+		ldi     ZH, high(OperandG << 1)     ; Load high byte of address into ZH
+
+		lpm		mpr, Z+
+		st		X+,	mpr
+		lpm		mpr, Z
+		st		X,	mpr
+		SBIW	X, 1
+
+		ldi		YL, low(COMP_OP2)	; Load low byte of address
+		ldi		YH, high(COMP_OP2)	; Load high byte of address
+
+		ldi     ZL, low(OperandH << 1)      ; Load low byte of address into ZL
+		ldi     ZH, high(OperandH << 1)     ; Load high byte of address into ZH
+
+		lpm		mpr, Z+
+		st		Y+,	mpr
+		lpm		mpr, Z
+		st		Y,	mpr
+		SBIW	Y, 1
+
+		ldi     ZL, low(Result1)      ; Load low byte of address into ZL
+		ldi     ZH, high(Result1)     ; Load high byte of address into ZH	
+
 
 		; Setup SUB16 with operands G and H
 		; Perform subtraction to calculate G - H
-
+		rcall SUB16
+		
 		; Setup the ADD16 function with SUB16 result and operand I
-		; Perform addition next to calculate (G - H) + I
+		ldi     XL, low(Result1)      ; Load low byte of address into ZL
+		ldi     XH, high(Result1)     ; Load high byte of address into ZH
+		ldi     YL, low(Result1)      ; Load low byte of address into ZL
+		ldi     YH, high(Result1)     ; Load high byte of address into ZH
+		
+		adiw	Y, 2					;
+		ldi     ZL, low(OperandI << 1)      ; Load low byte of address into ZL
+		ldi     ZH, high(OperandI << 1)     ; Load high byte of address into ZH
 
+		lpm		mpr, Z+
+		st		Y+,	mpr
+		lpm		mpr, Z
+		st		Y,	mpr
+		SBIW	Y, 1
+		
+		ldi     ZL, low(Result2)      ; Load low byte of address into ZL
+		ldi     ZH, high(Result2)     ; Load high byte of address into ZH	
+
+
+		; Perform addition next to calculate (G - H) + I
+		rcall ADD16
 		; Setup the MUL24 function with ADD16 result as both operands
+		ldi     XL, low(Result2)      ; Load low byte of address into ZL
+		ldi     XH, high(Result2)     ; Load high byte of address into ZH
+		ldi     YL, low(Result2)      ; Load low byte of address into ZL
+		ldi     YH, high(Result2)     ; Load high byte of address into ZH
+		ldi		ZL, low(Result3)
+		ldi		ZH, high(result3)
 		; Perform multiplication to calculate ((G - H) + I)^2
+		rcall MUL24						;
 
 		ret						; End a function with RET
 
@@ -596,6 +757,25 @@ MUL24_Result:
 							;     MUL24 multiplies two 24 bit numbers:
 							;     24 bits = 3 bytes
 							;	  two numbers * 3 bytes = 6 bytes
+
+
+.org	$0180
+COMP_OP1:
+	.byte 2
+COMP_OP2:
+	.byte 2
+
+.org	$0190
+RESULT1:
+	.byte 2
+
+.org	$01A0
+RESULT2:
+	.byte 3
+
+.org	$01B0
+RESULT3:
+	.byte 6
 
 
 ;***********************************************************
