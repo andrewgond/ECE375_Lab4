@@ -75,9 +75,10 @@ MAIN:							; The Main program
 
 
 		; Call function to load MUL24 operands
-		nop ; Check load MUL24 operands (Set Break point here #5)
+		rcall load_mul24	; Check load MUL24 operands (Set Break point here #5)
 
 		; Call MUL24 function to display its results (calculate FFFFFF * FFFFFF)
+		rcall mul24	;
 		nop ; Check MUL24 result (Set Break point here #6)
 
 		; Setup the COMPOUND function direct test
@@ -253,6 +254,51 @@ SUB16:
 
 		ret						; End a function with RET
 
+
+;-----------------------------------------------------------
+; Func: Load_MUL24
+; Desc: Multiplies two 24-bit numbers and generates a 48-bit
+;       result.
+;-----------------------------------------------------------
+Load_MUL24:
+		ldi		XL, low(MUL24_OP1)	; Load low byte of address
+		ldi		XH, high(MUL24_OP1)	; Load high byte of address
+
+		ldi     ZL, low(OperandE1 << 1)      ; Load low byte of address into ZL
+		ldi     ZH, high(OperandE1 << 1)     ; Load high byte of address into ZH
+
+		lpm		mpr, Z+
+		st		X+,	mpr
+		lpm		mpr, Z
+		st		X+,	mpr
+		lpm		mpr, Z
+		st		X+,	mpr
+		
+
+		ldi		YL, low(MUL24_OP2)	; Load low byte of address
+		ldi		YH, high(MUL24_OP2)	; Load high byte of address
+
+		ldi     ZL, low(OperandF1 << 1)      ; Load low byte of address into ZL
+		ldi     ZH, high(OperandF1 << 1)     ; Load high byte of address into ZH
+
+		lpm		mpr, Z+
+		st		Y+,	mpr
+		lpm		mpr, Z+
+		st		Y+,	mpr
+		lpm		mpr, Z+
+		st		Y+,	mpr
+
+
+		ldi		XL, low(MUL24_OP1)	; Load low byte of address
+		ldi		XH, high(MUL24_OP1)	; Load high byte of address
+		ldi		YL, low(MUL24_OP2)	; Load low byte of address
+		ldi		YH, high(MUL24_OP2)	; Load high byte of address
+
+
+		ldi     ZL, low(MUL24_RESULT)      ; Load low byte of address into ZL
+		ldi     ZH, high(MUL24_RESULT)     ; Load high byte of address into ZH	
+		ret
+
 ;-----------------------------------------------------------
 ; Func: MUL24
 ; Desc: Multiplies two 24-bit numbers and generates a 48-bit
@@ -261,6 +307,18 @@ SUB16:
 MUL24:
 ;* - Simply adopting MUL16 ideas to MUL24 will not give you steady results. You should come up with different ideas.
 	
+	rcall MUL24x8		;
+
+	ret
+
+
+MUL24x8:
+
+
+MULPlace:
+
+	ret
+
 
 ;-----------------------------------------------------------
 ; Func: COMPOUND
@@ -433,32 +491,32 @@ ADD16_OP1:
 ADD16_OP2:
 		.byte 2				; allocate two bytes for second operand of ADD16
 
-.org	$0122				; data memory allocation for results
+.org	$0120				; data memory allocation for results
 ADD16_Result:
 		.byte 3				; allocate three bytes for ADD16 result
 
 
 
-.org	$0133				; data memory allocation for operands
+.org	$0130				; data memory allocation for operands
 SUB16_OP1:
 		.byte 2				; allocate two bytes for first operand of ADD16
 SUB16_OP2:
 		.byte 2				; allocate two bytes for second operand of ADD16
 
-.org	$0144				; data memory allocation for results
+.org	$0140				; data memory allocation for results
 SUB16_Result:
 		.byte 2				; allocate three bytes for SUB16 result
 
 
-.org	$0166				; data memory allocation for operands
-MULT_OP1:
-		.byte 2				; allocate two bytes for first operand of ADD16
-MULT_OP2:
-		.byte 2				; allocate two bytes for second operand of ADD16
+.org	$0160				; data memory allocation for operands
+MUL24_OP1:
+		.byte 3				; allocate two bytes for first operand of ADD16
+MUL24_OP2:
+		.byte 3			; allocate two bytes for second operand of ADD16
 
-.org	$0177				; data memory allocation for results
-MULT_Result:
-		.byte 2				; allocate three bytes for SUB16 result
+.org	$0170				; data memory allocation for results
+MUL24_Result:
+		.byte 6				; allocate three bytes for SUB16 result
 
 
 ;***********************************************************
