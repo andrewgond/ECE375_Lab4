@@ -223,6 +223,7 @@ Load_SUB16:
 		ret
 
 SUB16:
+		; Store current register values to the stack for later
 		push A
 		push B
 		push XL
@@ -242,6 +243,7 @@ SUB16:
 		sbc		A,B;
 		st		Z+, A
 
+		; Restore Values from Stack to the registers:
 		pop mpr
 		pop ZH
 		pop ZL
