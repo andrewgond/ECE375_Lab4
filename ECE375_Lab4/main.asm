@@ -5,16 +5,14 @@
 ;*			Harrison Gregory
 ;*	   Date: 2-06-2025
 ;*
-;*
-;*
 ;*	Descr: This program contains 4 functions for:
-;*			- ADD16 - 
-;*			- SUB16 - 
-;*			- MUL16 - 
-;*			- MUL24 - 
-;*			- COMPOUND - 
-;*				
-;*				T
+;*			- ADD16 - adds 2 16 bit ints to get a 16 bit result
+;*			- SUB16 - subtracts a smaller 16 bit int from a 
+;*						larger 16 bit int and stores it into a 16 bit result
+;*			- MUL16 - multiplies two 16 bit ints to make a 32 bit int
+;*			- MUL24 - multiplies two 24 bit ints to make a 48 bit int
+;*			- COMPOUND - utilizes ADD16, SUB16, MUL24 to perform the 
+;*						operation ((G - H) + I)^2	
 ;*
 ;***********************************************************
 
@@ -244,7 +242,7 @@ LOAD_SUB16:
 		ret	; End LOAD_SUB16
 
 ;-----------------------------------------------------------
-; Func: LOAD_SUB16
+; Func: SUB16
 ; Desc: Subtracts a smaller number B from a larger number A
 ;		stores 16 bit result to location Z points to.
 ; Req:	X must point to first byte of large 16 bit number
@@ -507,6 +505,9 @@ LOAD_MUL24:
 ;       be moved into data memory for use as input operands.
 ;
 ;       All result bytes should be cleared before beginning.
+;
+; Req: Assumes integers of the correct size exist in referenced
+;		mem addresses
 ;-----------------------------------------------------------
 COMPOUND:
 ;LOAD OPERANDS
