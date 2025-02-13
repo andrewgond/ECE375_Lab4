@@ -118,9 +118,9 @@ Load_ADD16:
 
 		lpm		mpr, Z+
 		st		X+,	mpr
-		lpm		mpr, Z
-		st		X,	mpr
-		SBIW	X,	1
+		lpm		mpr, Z			
+		st		X,	mpr			; Load data at address X with mpr
+		SBIW	X,	1			; Go to previous address of X
 		ldi		YL, low(ADD16_OP2)	; Load low byte of address
 		ldi		YH, high(ADD16_OP2)	; Load high byte of address
 
@@ -254,19 +254,113 @@ SUB16:
 
 		ret						; End a function with RET
 
+;-----------------------------------------------------------
+; Func: MUL24
+; Desc: Multiplies two 24-bit numbers and generates a 48-bit
+;       result. Performs factorE * factorF = result by storing
+;		factorE and factorF into 
+;
+;
+; Below are the program_memory addresses of factors E and F
+/**
+; MUL24 operands
+OperandE1:
+	.DW	0XFFFF				; lower 16 bits (factorE)
+OperandE2:
+	.DW	0X00FF				; upper 8 bits (factorE)
+OperandF1:
+	.DW	0XFFFF				; lower 16 bits (factorF)
+OperandF2:
+	.DW	0X00FF				; upper 8 bits (factorF)
+**/
+;
+;
+; Below are the future SRAM addresses of factors E, F, and 
+;	result:
+/**
+.org	$0160				; data memory allocation for operands
+MUL24_OP1:					; factorE
+		.byte 3				; allocate three bytes for first operand of MUL24
+MUL24_OP2:					; factorF
+		.byte 3				; allocate three bytes for second operand of MUL24
+
+.org	$0170				; data memory allocation for results of MUL24
+MUL24_Result:
+		.byte 6				; allocate 7 bytes for MUL24 result: 
+							;        Reason below:
+							;     MUL24 multiplies two 24 bit numbers:
+							;     24 bits = 3 bytes
+							;	  two numbers * 3 bytes = 6 bytes
+**/
+;-----------------------------------------------------------
+MUL24:
+;* - Simply adopting MUL16 ideas to MUL24 will not give you steady results. You should come up with different ideas.
+	
+	;Save all register previous values to Stack:
+	push 	A				; Save A register
+	push	B				; Save B register
+	push	rhi				; Save rhi register
+	push	rlo				; Save rlo register
+	push	zero			; Save zero register
+	push	XH				; Save X-ptr
+	push	XL
+	push	YH				; Save Y-ptr
+	push	YL
+	push	ZH				; Save Z-ptr
+	push	ZL
+	push	oloop			; Save counters
+	push	iloop
+
+	clr		zero			; Maintain zero semantics
+
+
+
+	rcall MUL24x8		;
+
+
+	//Restore all Register's previous values from Stack
+	pop		iloop			
+	pop		oloop
+	pop		ZL
+	pop		ZH
+	pop		YL
+	pop		YH
+	pop		XL
+	pop		XH
+	pop		zero
+	pop		rlo
+	pop		rhi
+	pop		B
+	pop		A
+
+
+	ret			;End of MUL24
+
+
+MUL24x8:
+
+
+MULPlace:
+
+	ret
+
+
 
 ;-----------------------------------------------------------
 ; Func: Load_MUL24
-; Desc: Multiplies two 24-bit numbers and generates a 48-bit
-;       result.
+; Desc: Helper Function of MUL24: loads factor1 and factor2
+;		into X and Z respec
 ;-----------------------------------------------------------
 Load_MUL24:
-		ldi		XL, low(MUL24_OP1)	; Load low byte of address
-		ldi		XH, high(MUL24_OP1)	; Load high byte of address
+		//Get factor1's SRAM storage address as X:
+		ldi		XL, low(MUL24_OP1)	; Load low byte of address  (factor1)
+		ldi		XH, high(MUL24_OP1)	; Load high byte of address (factor1)
 
-		ldi     ZL, low(OperandE1 << 1)      ; Load low byte of address into ZL
+		//Get factor1's address from program memory as Z:
+		ldi     ZL, low(OperandE1 << 1)      ; Load low byte of address into ZL 
 		ldi     ZH, high(OperandE1 << 1)     ; Load high byte of address into ZH
 
+		//
 		lpm		mpr, Z+
 		st		X+,	mpr
 		lpm		mpr, Z
@@ -298,27 +392,6 @@ Load_MUL24:
 		ldi     ZL, low(MUL24_RESULT)      ; Load low byte of address into ZL
 		ldi     ZH, high(MUL24_RESULT)     ; Load high byte of address into ZH	
 		ret
-
-;-----------------------------------------------------------
-; Func: MUL24
-; Desc: Multiplies two 24-bit numbers and generates a 48-bit
-;       result.
-;-----------------------------------------------------------
-MUL24:
-;* - Simply adopting MUL16 ideas to MUL24 will not give you steady results. You should come up with different ideas.
-	
-	rcall MUL24x8		;
-
-	ret
-
-
-MUL24x8:
-
-
-MULPlace:
-
-	ret
-
 
 ;-----------------------------------------------------------
 ; Func: COMPOUND
@@ -458,13 +531,13 @@ OperandD:
 
 ; MUL24 operands
 OperandE1:
-	.DW	0XFFFF
+	.DW	0XFFFF				; 16 bits
 OperandE2:
-	.DW	0X00FF
+	.DW	0X00FF				; 8 bits (high part of opE)
 OperandF1:
-	.DW	0XFFFF
+	.DW	0XFFFF				; 16 bits
 OperandF2:
-	.DW	0X00FF
+	.DW	0X00FF				; 8 bits (high part of opF)
 
 ; Compoud operands
 OperandG:
@@ -510,13 +583,17 @@ SUB16_Result:
 
 .org	$0160				; data memory allocation for operands
 MUL24_OP1:
-		.byte 3				; allocate two bytes for first operand of ADD16
+		.byte 3				; allocate three bytes for first operand of MUL24
 MUL24_OP2:
-		.byte 3			; allocate two bytes for second operand of ADD16
+		.byte 3			; allocate three bytes for second operand of MUL24
 
-.org	$0170				; data memory allocation for results
+.org	$0170				; data memory allocation for results of MUL24
 MUL24_Result:
-		.byte 6				; allocate three bytes for SUB16 result
+		.byte 6				; allocate 7 bytes for MUL24 result: 
+							;        Reason below:
+							;     MUL24 multiplies two 24 bit numbers:
+							;     24 bits = 3 bytes
+							;	  two numbers * 3 bytes = 6 bytes
 
 
 ;***********************************************************
