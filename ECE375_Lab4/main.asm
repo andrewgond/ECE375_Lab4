@@ -118,7 +118,7 @@ Load_ADD16:
 		ldi     ZL, low(OperandA << 1)      ; Load low byte of address into ZL
 		ldi     ZH, high(OperandA << 1)     ; Load high byte of address into ZH
 
-		lpm		mpr, Z+
+		lpm		mpr, Z+			;Move data from operand into data memory
 		st		X+,	mpr
 		lpm		mpr, Z			
 		st		X,	mpr			; Load data at address X with mpr
@@ -129,7 +129,7 @@ Load_ADD16:
 		ldi     ZL, low(OperandB << 1)      ; Load low byte of address into ZL
 		ldi     ZH, high(OperandB << 1)     ; Load high byte of address into ZH
 
-		lpm		mpr, Z+
+		lpm		mpr, Z+				;Move data from operand into data memory
 		st		Y+,	mpr
 		lpm		mpr, Z
 		st		Y,	mpr
@@ -163,16 +163,16 @@ ADD16:
 		push mpr
 
 
-		ld		A, X+;
-		ld		B, Y+;
-		add		A,B;
-		st		Z+, A
-		ld		A, X;
-		ld		B, Y;
-		adc		A,B;
-		st		Z+, A
-		BRCC	AddCarrySkip;
-		ldi		mpr, $01;
+		ld		A, X+			; Get data memory from A
+		ld		B, Y+			; Get Data memory from B
+		add		A,B				; ADD them to each other
+		st		Z+, A			; Store the result in first bit
+		ld		A, X;			;Get second bits
+		ld		B, Y			;Get the second bit
+		adc		A,B;			; add but with carrys
+		st		Z+, A			;Go to hte next stop
+		BRCC	AddCarrySkip;	; skip if there is a carry
+		ldi		mpr, $01;		; move carry to the 0 if it exists
 		st		Z, mpr;
 
 AddCarrySkip:		
@@ -202,7 +202,7 @@ Load_SUB16:
 		ldi     ZL, low(OperandC << 1)      ; Load low byte of address into ZL
 		ldi     ZH, high(OperandC << 1)     ; Load high byte of address into ZH
 
-		lpm		mpr, Z+
+		lpm		mpr, Z+						;Move data from operand into data memory
 		st		X+,	mpr
 		lpm		mpr, Z
 		st		X,	mpr
@@ -214,7 +214,7 @@ Load_SUB16:
 		ldi     ZL, low(OperandD << 1)      ; Load low byte of address into ZL
 		ldi     ZH, high(OperandD << 1)     ; Load high byte of address into ZH
 
-		lpm		mpr, Z+
+		lpm		mpr, Z+				;Move data from operand into data memory
 		st		Y+,	mpr
 		lpm		mpr, Z
 		st		Y,	mpr
@@ -236,14 +236,14 @@ SUB16:
 		push ZH
 		push mpr
 
-		ld		A, X+;
-		ld		B, Y+;
-		sub		A,B;
-		st		Z+, A
-		ld		A, X;
-		ld		B, Y;
-		sbc		A,B;
-		st		Z+, A
+		ld		A, X+;		Load first operand from data
+		ld		B, Y+;		load second operand from data
+		sub		A,B;		subtract first operation from second
+		st		Z+, A;		store result in result
+		ld		A, X;		load second digit of operand
+		ld		B, Y;		load second digit of operand
+		sbc		A,B;		Subtract with carry
+		st		Z+, A		;store in second digit
 
 		; Restore Values from Stack to the registers:
 		pop mpr
@@ -317,22 +317,22 @@ MUL24:
 	clr		zero			; Maintain zero semantics
 
 
-;First 8 bits of X multiplied by the first 8 bits of Y
+;First 8 bits of X multiplied by Y
 	rcall MUL24x8		;
 
-	adiw Z, 1;
-	adiw X, 1;
-;First 8 bits of X multiplied by the second 8 bits of Y
+	adiw Z, 1			; shift the next line to the next 0's for adding
+	adiw X, 1			; Start multiplying with the second 8 bits
+;Second 8 bits of X multiplied by Y
 	rcall MUL24x8		;
 
-	adiw Z, 1;
-	adiw X, 1;
+	adiw Z, 1			; shift the next line to the next 0's for adding
+	adiw X, 1			; Start multiplying with the second 8 bits
 
-;First 8 bits of X multiplied by the Third 8 bits of Y
+;First 8 bits of X multiplied by Y
 	rcall MUL24x8		;
 
-	adiw Z, 1;
-	adiw X, 1;
+	adiw Z, 1			; shift the next line to the next 0's for adding
+	adiw X, 1			; Start multiplying with the second 8 bits
 
 
 	//Restore all Register's previous values from Stack
@@ -369,22 +369,22 @@ MUL24x8:
 ;First 8 bits of X multiplied by the first 8 bits of Y
 	rcall MULPLace		;
 
-	adiw Z, 1;
-	adiw Y, 1;
+	adiw Z, 1			; shift the next line to the next 0's for adding
+	adiw Y, 1			; Start multiplying with the second 8 bits
 ;First 8 bits of X multiplied by the second 8 bits of Y
 	rcall MULPLace		;
 
-	adiw Z, 1;
-	adiw Y, 1;
+	adiw Z, 1			; shift the next line to the next 0's for adding
+	adiw Y, 1			; Start multiplying with the second 8 bits
 
 ;First 8 bits of X multiplied by the Third 8 bits of Y
 	rcall MULPLace		;
 
-	adiw Z, 1;
-	adiw Y, 1;
+	adiw Z, 1			; shift the next line to the next 0's for adding
+	adiw Y, 1			; Start multiplying with the second 8 bits
 
 
-	pop		ZL
+	pop		ZL			; Pop everything off the stack
 	pop		ZH
 	pop		YL
 	pop		YH
@@ -468,7 +468,7 @@ Load_MUL24:
 		ldi     ZL, low(OperandE1 << 1)      ; Load low byte of address into ZL 
 		ldi     ZH, high(OperandE1 << 1)     ; Load high byte of address into ZH
 
-		//
+		// Move things from the operand into the DATA memory
 		lpm		mpr, Z+
 		st		X+,	mpr
 		lpm		mpr, Z
@@ -519,7 +519,7 @@ COMPOUND:
 		ldi     ZL, low(OperandG << 1)      ; Load low byte of address into ZL
 		ldi     ZH, high(OperandG << 1)     ; Load high byte of address into ZH
 
-		lpm		mpr, Z+
+		lpm		mpr, Z+					; load in data from operand G
 		st		X+,	mpr
 		lpm		mpr, Z
 		st		X,	mpr
@@ -531,7 +531,7 @@ COMPOUND:
 		ldi     ZL, low(OperandH << 1)      ; Load low byte of address into ZL
 		ldi     ZH, high(OperandH << 1)     ; Load high byte of address into ZH
 
-		lpm		mpr, Z+
+		lpm		mpr, Z+					;Load in operandH
 		st		Y+,	mpr
 		lpm		mpr, Z
 		st		Y,	mpr
@@ -543,7 +543,7 @@ COMPOUND:
 
 		; Setup SUB16 with operands G and H
 		; Perform subtraction to calculate G - H
-		rcall SUB16
+		rcall SUB16					;Call the SUB16 Function on the new places
 		
 		; Setup the ADD16 function with SUB16 result and operand I
 		ldi     XL, low(Result1)      ; Load low byte of address into ZL
@@ -551,11 +551,11 @@ COMPOUND:
 		ldi     YL, low(Result1)      ; Load low byte of address into ZL
 		ldi     YH, high(Result1)     ; Load high byte of address into ZH
 		
-		adiw	Y, 2					;
+		adiw	Y, 2					;Go to the next two lines to find the place of operandI
 		ldi     ZL, low(OperandI << 1)      ; Load low byte of address into ZL
 		ldi     ZH, high(OperandI << 1)     ; Load high byte of address into ZH
 
-		lpm		mpr, Z+
+		lpm		mpr, Z+					;Put data from operand I into Y's memory
 		st		Y+,	mpr
 		lpm		mpr, Z
 		st		Y,	mpr
