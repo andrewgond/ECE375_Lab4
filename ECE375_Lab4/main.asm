@@ -59,6 +59,7 @@ INIT:							; The initialization routine
 MAIN:							; The Main program
 
 		; Call function to load ADD16 operands
+		rcall load_add16 ;
 		rcall add16 ; Check load ADD16 operands (Set Break point here #1)
 
 		; Call ADD16 function to display its results (calculate FCBA + FFFF)
@@ -66,6 +67,7 @@ MAIN:							; The Main program
 
 
 		; Call function to load SUB16 o	perands
+		rcall load_sub16;
 		rcall SUB16 ; Check load SUB16 operands (Set Break point here #3)
 
 		; Call SUB16 function to display its results (calculate FCB9 - E420)
@@ -91,13 +93,16 @@ DONE:	rjmp	DONE			; Create an infinite while loop to signify the
 ;*	Functions and Subroutines
 ;***********************************************************
 
+
+
+
 ;-----------------------------------------------------------
-; Func: ADD16
+; Func: Load_ADD16
 ; Desc: Adds two 16-bit numbers and generates a 24-bit number
 ;       where the high byte of the result contains the carry
 ;       out bit.
 ;-----------------------------------------------------------
-ADD16:
+Load_ADD16:
 		push mpr
 		push A
 		push B
@@ -115,8 +120,6 @@ ADD16:
 		lpm		mpr, Z
 		st		X,	mpr
 		SBIW	X,	1
-
-
 		ldi		YL, low(ADD16_OP2)	; Load low byte of address
 		ldi		YH, high(ADD16_OP2)	; Load high byte of address
 
@@ -132,6 +135,31 @@ ADD16:
 
 		ldi     ZL, low(ADD16_Result)      ; Load low byte of address into ZL
 		ldi     ZH, high(ADD16_Result)     ; Load high byte of address into ZH	
+
+		pop	B
+		pop A
+		pop mpr
+		ret
+
+;-----------------------------------------------------------
+; Func: ADD16
+; Desc: Adds two 16-bit numbers and generates a 24-bit number
+;       where the high byte of the result contains the carry
+;       out bit.
+;		Assumptions: Already set X and Y as Operands and Z and destinations
+;-----------------------------------------------------------
+ADD16:
+		push A
+		push B
+		push XL
+		push XH
+		push YL
+		push YH
+		push ZL
+		push ZH
+		push mpr
+
+
 		ld		A, X+;
 		ld		B, Y+;
 		add		A,B;
@@ -140,21 +168,21 @@ ADD16:
 		ld		B, Y;
 		adc		A,B;
 		st		Z+, A
-		BRCC	CarrySkip;
+		BRCC	AddCarrySkip;
 		ldi		mpr, $01;
 		st		Z, mpr;
-CarrySkip:
 
-
-		
-		; Load beginning address of second operand into Y
-		
-		; Load beginning address of result into Z
-
-		; Execute the function
+AddCarrySkip:		
+		pop mpr
+		pop ZH
+		pop ZL
+		pop YH
+		pop YL
+		pop XH
+		pop XL
 		pop B
 		pop A
-		pop mpr		
+
 		ret						; End a function with RET
 
 ;-----------------------------------------------------------
@@ -162,7 +190,7 @@ CarrySkip:
 ; Desc: Subtracts two 16-bit numbers and generates a 16-bit
 ;       result. Always subtracts from the bigger values.
 ;-----------------------------------------------------------
-SUB16:
+Load_SUB16:
 		; Execute the function here
 		; Load beginning address of first operand into X
 		ldi		XL, low(SUB16_OP1)	; Load low byte of address
@@ -189,9 +217,21 @@ SUB16:
 		st		Y,	mpr
 		SBIW	Y, 1
 
-
 		ldi     ZL, low(SUB16_Result)      ; Load low byte of address into ZL
 		ldi     ZH, high(SUB16_Result)     ; Load high byte of address into ZH	
+		ret
+
+SUB16:
+		push A
+		push B
+		push XL
+		push XH
+		push YL
+		push YH
+		push ZL
+		push ZH
+		push mpr
+
 		ld		A, X+;
 		ld		B, Y+;
 		sub		A,B;
@@ -200,6 +240,16 @@ SUB16:
 		ld		B, Y;
 		sbc		A,B;
 		st		Z+, A
+
+		pop mpr
+		pop ZH
+		pop ZL
+		pop YH
+		pop YL
+		pop XH
+		pop XL
+		pop B
+		pop A
 
 		ret						; End a function with RET
 
@@ -210,10 +260,7 @@ SUB16:
 ;-----------------------------------------------------------
 MUL24:
 ;* - Simply adopting MUL16 ideas to MUL24 will not give you steady results. You should come up with different ideas.
-		; Execute the function here
-
-
-		ret						; End a function with RET
+	
 
 ;-----------------------------------------------------------
 ; Func: COMPOUND
@@ -386,20 +433,31 @@ ADD16_OP1:
 ADD16_OP2:
 		.byte 2				; allocate two bytes for second operand of ADD16
 
-.org	$0120				; data memory allocation for results
+.org	$0122				; data memory allocation for results
 ADD16_Result:
 		.byte 3				; allocate three bytes for ADD16 result
 
 
 
-.org	$0130				; data memory allocation for operands
+.org	$0133				; data memory allocation for operands
 SUB16_OP1:
 		.byte 2				; allocate two bytes for first operand of ADD16
 SUB16_OP2:
 		.byte 2				; allocate two bytes for second operand of ADD16
 
-.org	$0140				; data memory allocation for results
+.org	$0144				; data memory allocation for results
 SUB16_Result:
+		.byte 2				; allocate three bytes for SUB16 result
+
+
+.org	$0166				; data memory allocation for operands
+MULT_OP1:
+		.byte 2				; allocate two bytes for first operand of ADD16
+MULT_OP2:
+		.byte 2				; allocate two bytes for second operand of ADD16
+
+.org	$0177				; data memory allocation for results
+MULT_Result:
 		.byte 2				; allocate three bytes for SUB16 result
 
 
